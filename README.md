@@ -1,5 +1,5 @@
-# MMM-expenditures
-A MagicMirror2 Module to display information about private expenditures.
+# MMM-vels
+A MagicMirror2 Module to display information about the usage of a boulder place.
 
 This Module is heavily based on [MMM-vvsDeparture](https://github.com/niklaskappler/MMM-vvsDeparture).
 
@@ -8,7 +8,7 @@ Run these commands at the root of your magic mirror install.
 
 ```shell
 cd modules
-git clone https://github.com/dangrie158/MMM-expenditures
+git clone https://github.com/dangrie158/MMM-vels
 ```
 
 ## Using the module
@@ -17,10 +17,10 @@ To use this module, add the following configuration block to the modules array i
 var config = {
     modules: [
         {
-            module: 'MMM-expenditures',
+            module: 'MMM-vels',
             position: "top_right",
             config: {
-                host: '<YOUR_EXPENDITURE_HOST_HERE>',
+                host: '<YOUR_DATA_HOST_HERE>',
                 // See below for more configurable options
             }
         }
@@ -49,18 +49,9 @@ The following properties can be configured:
 			<td>
 			    <code>reloadInterval</code>
 			</td>
-     		 <td>The refresh rate expenditures will be updated in milliseconds. 
+     		 <td>The refresh rate the usage will be updated in milliseconds. 
       			<br><br><b>Possible values:</b> <code>integer</code>
-				<br><b>Default value:</b> <code>1 * 60 * 1000</code> e.q. one minute
-			</td>
-		</tr>
-		<tr>
-			<td>
-			    <code>lastExpenditures</code>
-			</td>
-     		 <td>Number of previous expenditures to display
-      			<br><br><b>Possible values:</b> <code>integer</code>
-				<br><b>Default value:</b> <code>10</code>
+				<br><b>Default value:</b> <code>10 * 60 * 1000</code> e.q. one minute
 			</td>
 		</tr>
 	</tbody>
