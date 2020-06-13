@@ -36,7 +36,7 @@ module.exports = NodeHelper.create({
 				let payload = {
 					data: JSON.parse(dataBody)
 				}
-				self.sendSocketNotification("NEW_VELSDATA", data);
+				self.sendSocketNotification("NEW_VELSDATA", payload);
 			}
 		});
 	}

@@ -1,13 +1,3 @@
-.vels table {
-    padding-left: 0;
-    padding-right: 10px;
-    font-size: 80%;
-}
-
-header .amount { 
-    color: #fff;
-}
-
 .vels .datatype {
     padding-left: 10px;
 }
@@ -27,17 +17,16 @@ header .amount {
 .vels .datatotal {
     color: whitesmoke;
 }
+.vels .datanone {
+    color: whitesmoke;
+    font-size: small;
+}
 
-.sparklinehigh {
-    stroke: red;
-    fill: rgba(255, 0, 0, .3);
+.vels #sparkline {
+    stroke: url(#velsgrad);
+    fill: none;
 }
-.sparklinemedium {
-    stroke: orange;
-    fill: rgba(255, 255, 0, 0.3);
+
+.vels p {
+    margin: 0
 }
-.sparklinelow {
-    stroke: greenyellow;
-    fill: rgba(200, 255, 0, 0.3);
-    }
-  

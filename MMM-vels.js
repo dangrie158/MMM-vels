@@ -6,11 +6,12 @@
  * By dangrie158
  * MIT Licensed.
  */
-Module.register('MMM-velss', {
+Module.register('MMM-vels', {
 
 	defaults: {
 		host: undefined,
-		reloadInterval: 10 * 60 * 1000, // every 10 minutes
+		reloadInterval: 10 * 60 * 1000, // every 10 minutes,
+		opensAt: [6, 00], // should be in UTC
 	},
 
 	requiresVersion: '2.1.0', // Required version of MagicMirror
@@ -21,7 +22,7 @@ Module.register('MMM-velss', {
 	},
 
 	getScripts: function () {
-		return ['sparkline.js']
+		return ['sparkline.js'];
 	},
 
 	// Load translations files
@@ -35,7 +36,7 @@ Module.register('MMM-velss', {
 	// Overrides start function.
 	start: function () {
 		var self = this;
-		self.data = [Date(), 0, 0];
+		self.velsdata = [];
 		self.sendSocketNotification('GET_VELSDATA', { 'config': self.config });
 	},
 
@@ -44,16 +45,26 @@ Module.register('MMM-velss', {
 		var self = this;
 
 		if (notification === 'NEW_VELSDATA') {
-			self.data = payload.data;
+			self.velsdata = payload.data;
 			self.updateDom();
+			Log.log("UPDATE DOM");
 		}
 	},
 
-	isToday: function(someDate) {
+	isToday: function (someDate) {
 		const today = new Date()
 		return someDate.getDate() == today.getDate() &&
 			someDate.getMonth() == today.getMonth() &&
 			someDate.getFullYear() == today.getFullYear()
+	},
+
+	isDuringOpeningHours: function (someDate) {
+		return someDate.getHours() >= this.config.opensAt[0] &&
+			someDate.getMinutes() >= this.config.opensAt[1]
+	},
+
+	getHeader: function () {
+		return this.translate('HEADER');
 	},
 
 	// Override dom generator.
@@ -62,58 +73,79 @@ Module.register('MMM-velss', {
 
 		var wrapper = document.createElement('div');
 
-		var headerWrappper = document.createElement('header');
-		headerWrappper.innerHTML = self.translate('HEADER');
-		wrapper.appendChild(headerWrappper)
+		wrapper.classList.add('vels');
 
-
-		var contentWrapper = document.createElement('div');
-
-		sparklineData = [];
-		for (var i in self.data) {
-			data = self.data[i];
-			data.date = Date.parse(data.date)
-			if( self.isToday(data.date) ){
+		var sparklineData = [];
+		for (var i in self.velsdata) {
+			data = self.velsdata[i];
+			data.date = new Date(Date.parse(data.date));
+			if (self.isToday(data.date) && self.isDuringOpeningHours(data.date)) {
 				sparklineData.push(data)
 			}
 		}
 
-		if(sparklineData.length == 0){
-			var nodataPar = document.createElement('p')
-			nodataPar.innerHTML = self.translate('NO_DATA')
-			contentWrapper.appendChild(nodataPar);
-		}else{
+		if (sparklineData.length == 0) {
+			var nodataPar = document.createElement('p');
+			nodataPar.innerHTML = self.translate('NO_DATA');
+			nodataPar.classList.add('datanone');
+			wrapper.appendChild(nodataPar);
+		} else {
 			var currentData = sparklineData[sparklineData.length - 1];
 			var active = currentData.act;
 			var free = currentData.free;
 			var total = active + free;
 			var usageClass = '';
-			if(active <= (total * 0.34)){
+			if (active <= total * 1 / 3) {
 				usageClass = 'low';
-			}else if(active <= (total * 0.66)){
+			} else if (active <= total * 2 / 3) {
 				usageClass = 'medium';
-			}else{
+			} else {
 				usageClass = 'high';
 			}
 
-			var sparkline = document.createElement('svg');
+			var sparkline = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
 			sparkline.id = 'sparkline';
-			sparkline.width = sparklineData.length * 2;
-			sparkline.height = '60';
-			sparkline.strokeWidth = '3';
-			sparkline.classList.add('sparkline'+usageClass);
-			contentWrapper.appendChild(sparkline);
+			sparkline.setAttribute('width', sparklineData.length * 3);
+			sparkline.setAttribute('height', total);
+			sparkline.setAttribute('stroke-width', 3);
+			wrapper.appendChild(sparkline);
 
 			var sparklineScript = document.createElement('script');
-			sparklineScript.innerHTML = 'sparkline(document.getElementById("sparkline"), ' + sparklineData + ');';
-			contentWrapper.appendChild(sparklineScript);
+			var datastring = '[' + sparklineData.map((v) => v.act).join(',') + ']'
+			sparklineScript.innerHTML = "Module.definitions['MMM-vels'].generateSparkline(" + datastring + ", " + total + ");";
+			wrapper.appendChild(sparklineScript);
 
 			var dataText = document.createElement('p');
-			dataText.innerHTML = '<span class="vels data'+ usageClass +'">' + active + '</span>';
+			dataText.innerHTML = '<span class="vels data' + usageClass + '">' + active + '</span>';
 			dataText.innerHTML += '<span class="vels datatotal">/' + total + '</span>';
-			contentWrapper.appendChild(dataText);
+			wrapper.appendChild(dataText);
 		}
 
 		return wrapper;
+	},
+
+	generateSparkline: function (linedata, total) {
+		let svgelem = document.getElementById("sparkline")
+		sparkline.sparkline(svgelem, linedata, { max: total });
+		let gradient = sparkline.buildElement('linearGradient', {
+			id: 'velsgrad',
+			x1: '0%',
+			y1: '100%',
+			x2: '0%',
+			y2: '0%'
+		});
+
+		let stop1 = sparkline.buildElement('stop', {
+			offset: '0%',
+			style: "stop-color:greenyellow;stop-opacity:0.5"
+		});
+		let stop2 = sparkline.buildElement('stop', {
+			offset: '100%',
+			style: "stop-color:red;stop-opacity:0.5"
+		});
+		gradient.appendChild(stop1);
+		gradient.appendChild(stop2);
+
+		svgelem.appendChild(gradient)
 	}
 });

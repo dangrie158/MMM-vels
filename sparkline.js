@@ -1,2 +1,136 @@
-var sparkline=function(t){var e={};function r(n){if(e[n])return e[n].exports;var o=e[n]={i:n,l:!1,exports:{}};return t[n].call(o.exports,o,o.exports,r),o.l=!0,o.exports}return r.m=t,r.c=e,r.d=function(t,e,n){r.o(t,e)||Object.defineProperty(t,e,{enumerable:!0,get:n})},r.r=function(t){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(t,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(t,"__esModule",{value:!0})},r.t=function(t,e){if(1&e&&(t=r(t)),8&e)return t;if(4&e&&"object"==typeof t&&t&&t.__esModule)return t;var n=Object.create(null);if(r.r(n),Object.defineProperty(n,"default",{enumerable:!0,value:t}),2&e&&"string"!=typeof t)for(var o in t)r.d(n,o,function(e){return t[e]}.bind(null,o));return n},r.n=function(t){var e=t&&t.__esModule?function(){return t.default}:function(){return t};return r.d(e,"a",e),e},r.o=function(t,e){return Object.prototype.hasOwnProperty.call(t,e)},r.p="",r(r.s=1)}([function(t,e,r){var n=r(2),o=r(3),i=r(4);t.exports=function(t){return n(t)||o(t)||i()}},function(t,e,r){"use strict";r.r(e),r.d(e,"sparkline",function(){return c});var n=r(0),o=r.n(n);function i(t,e,r,n){return parseFloat((e-n*e/t+r).toFixed(2))}function a(t){return t.value}function u(t,e){var r=document.createElementNS("http://www.w3.org/2000/svg",t);for(var n in e)r.setAttribute(n,e[n]);return r}function c(t,e,r){var n;if(n=t,o()(n.querySelectorAll("*")).forEach(function(t){return n.removeChild(t)}),!(e.length<=1)){r=r||{},"number"==typeof e[0]&&(e=e.map(function(t){return{value:t}}));var c=r.onmousemove,l=r.onmouseout,s="interactive"in r?r.interactive:!!c,f=r.spotRadius||2,p=2*f,d=r.cursorWidth||2,v=parseFloat(t.attributes["stroke-width"].value),b=r.fetch||a,h=e.map(function(t){return b(t)}),y=parseFloat(t.attributes.width.value)-2*p,x=parseFloat(t.attributes.height.value),m=x-2*v-p,g=Math.max.apply(Math,o()(h)),A=-1e3,w=h.length-1,j=y/w,k=[],O=i(g,m,v+f,h[0]),S="M".concat(p," ").concat(O);h.forEach(function(t,r){var n=r*j+p,o=i(g,m,v+f,t);k.push(Object.assign({},e[r],{index:r,x:n,y:o})),S+=" L ".concat(n," ").concat(o)});var M=u("path",{class:"sparkline--line",d:S,fill:"none"}),C=u("path",{class:"sparkline--fill",d:"".concat(S," V ").concat(x," L ").concat(p," ").concat(x," Z"),stroke:"none"});if(t.appendChild(C),t.appendChild(M),s){var E=u("line",{class:"sparkline--cursor",x1:A,x2:A,y1:0,y2:x,"stroke-width":d}),_=u("circle",{class:"sparkline--spot",cx:A,cy:A,r:f});t.appendChild(E),t.appendChild(_);var F=u("rect",{width:t.attributes.width.value,height:t.attributes.height.value,style:"fill: transparent; stroke: transparent",class:"sparkline--interaction-layer"});t.appendChild(F),F.addEventListener("mouseout",function(t){E.setAttribute("x1",A),E.setAttribute("x2",A),_.setAttribute("cx",A),l&&l(t)}),F.addEventListener("mousemove",function(t){var e=t.offsetX,r=k.find(function(t){return t.x>=e});r||(r=k[w]);var n,o=k[k.indexOf(r)-1],i=(n=o?o.x+(r.x-o.x)/2<=e?r:o:r).x,a=n.y;_.setAttribute("cx",i),_.setAttribute("cy",a),E.setAttribute("x1",i),E.setAttribute("x2",i),c&&c(t,n)})}}}e.default=c},function(t,e){t.exports=function(t){if(Array.isArray(t)){for(var e=0,r=new Array(t.length);e<t.length;e++)r[e]=t[e];return r}}},function(t,e){t.exports=function(t){if(Symbol.iterator in Object(t)||"[object Arguments]"===Object.prototype.toString.call(t))return Array.from(t)}},function(t,e){t.exports=function(){throw new TypeError("Invalid attempt to spread non-iterable instance")}}]);
-//# sourceMappingURL=sparkline.js.map
+let sparkline = {
+
+  getY: function (max, height, diff, value) {
+    return parseFloat((height - (value * height / max) + diff).toFixed(2));
+  },
+
+  removeChildren: function (svg) {
+    [...svg.querySelectorAll("*")].forEach(element => svg.removeChild(element));
+  },
+
+  defaultFetch: function (entry) {
+    return entry.value;
+  },
+
+  buildElement: function (tag, attrs) {
+    const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+
+    for (let name in attrs) {
+      element.setAttribute(name, attrs[name]);
+    }
+
+    return element;
+  },
+
+  sparkline: function (svg, entries, options) {
+    let self = this;
+    self.removeChildren(svg);
+
+    if (entries.length <= 1) {
+      return;
+    }
+
+    options = options || {};
+
+    if (typeof (entries[0]) === "number") {
+      entries = entries.map(entry => {
+        return { value: entry };
+      });
+    }
+
+    // This function will be called whenever the mouse moves
+    // over the SVG. You can use it to render something like a
+    // tooltip.
+    const onmousemove = options.onmousemove;
+
+    // This function will be called whenever the mouse leaves
+    // the SVG area. You can use it to hide the tooltip.
+    const onmouseout = options.onmouseout;
+
+    // Should we run in interactive mode? If yes, this will handle the
+    // cursor and spot position when moving the mouse.
+    const interactive = ("interactive" in options) ? options.interactive : !!onmousemove;
+
+    // Define how big should be the spot area.
+    const spotRadius = options.spotRadius || 2;
+    const spotDiameter = spotRadius * 2;
+
+    // Define how wide should be the cursor area.
+    const cursorWidth = options.cursorWidth || 2;
+
+    // Get the stroke width; this is used to compute the
+    // rendering offset.
+    const strokeWidth = parseFloat(svg.attributes["stroke-width"].value);
+
+    // By default, data must be formatted as an array of numbers or
+    // an array of objects with the value key (like `[{value: 1}]`).
+    // You can set a custom function to return data for a different
+    // data structure.
+    const fetch = options.fetch || self.defaultFetch;
+
+    // Retrieve only values, easing the find for the maximum value.
+    const values = entries.map(entry => fetch(entry));
+
+    // The rendering width will account for the spot size.
+    const width = parseFloat(svg.attributes.width.value) - spotDiameter * 2;
+
+    // Get the SVG element's full height.
+    // This is used
+    const fullHeight = parseFloat(svg.attributes.height.value);
+
+    // The rendering height accounts for stroke width and spot size.
+    const height = fullHeight - (strokeWidth * 2) - spotDiameter;
+
+    // The maximum value. This is used to calculate the Y coord of
+    // each sparkline datapoint.
+    const max = options.max || Math.max(...values);
+
+    // Some arbitrary value to remove the cursor and spot out of
+    // the viewing canvas.
+    const offscreen = -1000;
+
+    // Cache the last item index.
+    const lastItemIndex = values.length - 1;
+
+    // Calculate the X coord base step.
+    const offset = width / lastItemIndex;
+
+    // Hold all datapoints, which is whatever we got as the entry plus
+    // x/y coords and the index.
+    const datapoints = [];
+
+    // Hold the line coordinates.
+    const pathY = self.getY(max, height, strokeWidth + spotRadius, values[0]);
+    let pathCoords = `M -${spotDiameter} ${max} V 0 M${spotDiameter} ${pathY}`;
+
+    values.forEach((value, index) => {
+      const x = index * offset + spotDiameter;
+      const y = self.getY(max, height, strokeWidth + spotRadius, value);
+
+      datapoints.push(Object.assign({}, entries[index], {
+        index: index,
+        x: x,
+        y: y
+      }));
+
+      pathCoords += ` L ${x} ${y}`;
+    });
+
+    const path = self.buildElement("path", {
+      class: "sparkline--line",
+      d: pathCoords,
+      fill: "none"
+    });
+
+    let fillCoords = `${pathCoords} V ${fullHeight} L ${spotDiameter} ${fullHeight} Z`;
+
+    const fill = self.buildElement("path", {
+      class: "sparkline--fill",
+      d: fillCoords,
+      stroke: "none"
+    });
+
+    svg.appendChild(fill);
+    svg.appendChild(path);
+  }
+};
