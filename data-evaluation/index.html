@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+
+    <!-- Load d3.js & color palette -->
+    <script src="https://d3js.org/d3.v4.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+    <style>
+        .axis line {
+            stroke: #ccc;
+        }
+
+        .axis path {
+            stroke: #888;
+        }
+
+        .axis text {
+            fill: #ccc;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Create a div where the graph will take place -->
+    <div>
+        <svg id="vels_data_daily" height=300 width=450 style="margin: 50px;"></svg>
+        <script>
+            var margin = { top: 50, right: 50, bottom: 50, left: 50 }
+                , width = window.innerWidth - margin.left - margin.right // Use the window's width 
+                , height = window.innerHeight - margin.top - margin.bottom; // Use the window's height
+
+            function isToday(somedate) {
+                let today = new Date();
+                return somedate.getDate() === today.getDate() &&
+                    somedate.getMonth() === today.getMonth() &&
+                    somedate.getYear() == today.getYear();
+            }
+            const NUM_BINS = 10;
+
+            async function buildGraph() {
+                let dataRequest = await fetch('https://expenditures.danielgriesshaber.de/vels.json');
+                let data = await dataRequest.json();
+                data = data.map(d => {
+                    d.date = new Date(Date.parse(d.date));
+                    return d;
+                })
+
+                let groupedData = {};
+                let today = new Date()
+                let todayData = [];
+                for (let entry of data) {
+                    let weekday = entry.date.getDay();
+                    let dayData = groupedData[weekday] || [];
+
+                    let time = entry.date.getHours() * 60 + entry.date.getMinutes();
+                    let timeFrameIndex = dayData.findIndex(d => d[0] == time);
+                    if (timeFrameIndex == -1) {
+                        timeFrameIndex = dayData.push([[time], []]) - 1;
+                    }
+
+                    let timeFrame = dayData[timeFrameIndex];
+                    timeFrame[1].push(entry.act);
+
+                    dayData[timeFrameIndex] = timeFrame;
+                    groupedData[weekday] = dayData;
+
+                    if (isToday(entry.date)) {
+                        todayData.push([[time], [entry.act]])
+                    }
+                }
+
+                let svg = d3.select("#vels_data_daily")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+
+                let keys = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"]
+
+                let color = d3.scaleSequential(d3.interpolateMagma)
+                    .domain([NUM_BINS, 0]);
+
+                let x = d3.scaleLinear()
+                    .domain([06 * 60, 24 * 60])
+                    .range([0, width]);
+
+                let y = d3.scaleLinear()
+                    .domain([0, d3.max(data, d => d.act + d.free)])
+                    .range([height, 0]);
+
+                for (let weekday in groupedData) {
+                    let dayData = groupedData[weekday];
+                    let userLine = svg.append('g')
+                        .datum(dayData)
+                        .attr("opacity", 0)
+                        .attr("id", `data-${weekday}`)
+                        .attr("stroke-width", 1.5);
+
+                    
+                    let average = dayData.map(d => [d[0], d3.mean(d[1])]);
+
+                    // bound of the data (confidence interval)
+                    for (let bin = NUM_BINS - 1; bin >= 0; bin--) {
+                        let binData = dayData.map(d => {
+                            let mean = d3.mean(d[1])
+                            let deviations = d[1].map(e => Math.abs(e - mean))
+                            let dataCount = d[1].length
+                            let dataLeftInBin = Math.max(Math.ceil((dataCount / NUM_BINS) * bin ), 1)
+                            let maxDeviation = deviations.concat().sort((a, b) => a - b)[dataLeftInBin - 1];
+                            let binElements = d[1].filter((_, i) => deviations[i] <= maxDeviation)
+                            return [d[0], binElements]
+                        });
+                        console.log(bin, binData[100][1], d3.mean(dayData[100][1]))
+                        userLine.append("path")
+                            .datum(binData)
+                            .attr("stroke", "none")
+                            .attr("fill", d => d3.rgb(color(bin)))
+                            .attr("opacity", 0.8)
+                            .attr("class", "bound")
+                            .attr("d", d3.area()
+                                .x(d => x(d[0]))
+                                .y0(d => y(d3.min(d[1])))
+                                .y1(d => y(d3.max(d[1])))
+                            );
+                    }
+
+                    //average line in the middle
+                    userLine.append("path")
+                        .datum(average)
+                        .attr("fill", "none")
+                        .attr("stroke", d => d3.rgb(color(0)))
+                        .attr("d", d3.line()
+                            .x(d => x(d[0]))
+                            .y(d => y(d[1]))
+                        )
+
+                }
+
+                //todays data
+                svg.append("path")
+                    .datum(todayData)
+                    .attr("fill", "none")
+                    .attr("stroke", color(NUM_BINS))
+                    .attr("stroke-width", 1.5)
+                    .style("stroke-dasharray", ("5, 5"))
+                    .attr("d", d3.line()
+                        .x(d => x(d[0]))
+                        .y(d => y(d3.mean(d[1])))
+                    )
+
+                // axis
+                svg.append("g")
+                    .attr("transform", "translate(0," + height + ")")
+                    .attr("class", "axis")
+                    .call(d3.axisBottom(x)
+                        .tickFormat(x => d3.timeFormat("%H:%M")(new Date(x * 60 * 1000)))
+                    );
+                svg.append("g")
+                    .attr("class", "axis")
+                    .call(d3.axisLeft(y)
+                        .ticks(10)
+                    );
+
+                function highlight(dayName, dayIndex) {
+                    d3.select(`#data-${dayIndex}`)
+                        .attr("stroke-width", 3)
+                        .raise()
+                        .attr("opacity", 1);
+                }
+
+                function unhighlight(dayName, dayIndex) {
+                    d3.select(`#data-${dayIndex}`)
+                        .attr("stroke-width", 1.5)
+                        .lower()
+                        .attr("opacity", 0.0);
+                }
+
+                // legend
+                let legendBoxes = svg.append('g')
+                    .attr('id', 'legend')
+                    .selectAll('g')
+                    .data(keys)
+                    .enter()
+                    .append('g')
+                    .on("mouseover", highlight)
+                    .on("mouseleave", unhighlight);
+
+                legendBoxes.append("circle")
+                    .attr("cx", 100)
+                    .attr("cy", (d, i) => 100 + i * 25)
+                    .attr("r", 7)
+                    .style("fill", "black")
+
+                legendBoxes.append("text")
+                    .attr("x", 120)
+                    .attr("y", (d, i) => 100 + i * 25)
+                    .style("fill", "black")
+                    .text(d => d)
+                    .attr("text-anchor", "left")
+                    .style("alignment-baseline", "middle");
+
+
+            }
+            buildGraph();
+        </script>
+    </div>
+</body>
+
+</html>
