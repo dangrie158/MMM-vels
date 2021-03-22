@@ -29,9 +29,16 @@ module.exports = NodeHelper.create({
 
 	updateVelsData: function (host) {
 		var self = this;
-		var expenditures_url = host + '/vels.json';
+		var expenditures_url = host + '/query?db=telegraf';
+		let query = `
+			SELECT
+				mean("active") AS active ,
+				mean("active") + mean("free") AS total
+			FROM "boulder_center_utilization"
+			WHERE ("location" = 'vels') AND time >= 1616367600000ms and time <= 1616453999999ms
+			GROUP BY time(10m) fill(none);`
 
-		request(expenditures_url, function (error, response, dataBody) {
+		request(expenditures_url, { form: { q: query } }, function (error, response, dataBody) {
 			if (!error && response.statusCode == 200) {
 				let payload = {
 					data: JSON.parse(dataBody)

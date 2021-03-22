@@ -76,11 +76,17 @@ Module.register('MMM-vels', {
 		wrapper.classList.add('vels');
 
 		var sparklineData = [];
-		for (var i in self.velsdata) {
-			data = self.velsdata[i];
-			data.date = new Date(Date.parse(data.date));
-			if (self.isToday(data.date) && self.isDuringOpeningHours(data.date)) {
-				sparklineData.push(data)
+		var data = self.velsdata.results[0].series[0].values;
+		for (var i in data) {
+			current_data = data[i];
+			let date = new Date(Date.parse(current_data[0]));
+			if (self.isToday(date) && self.isDuringOpeningHours(date)) {
+
+				sparklineData.push({
+					"date": date,
+					"act": current_data[1],
+					"total": current_data[2],
+				})
 			}
 		}
 
@@ -92,8 +98,7 @@ Module.register('MMM-vels', {
 		} else {
 			var currentData = sparklineData[sparklineData.length - 1];
 			var active = currentData.act;
-			var free = currentData.free;
-			var total = active + free;
+			var total = currentData.total;
 			var usageClass = '';
 			if (active <= total * 1 / 3) {
 				usageClass = 'low';

@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/bin/sh
 
-cd /home/dangrie158/vels-crawler
-python3 /home/dangrie158/vels-crawler/crawl.py
+DIR=$( dirname "$0" )
+cd "${DIR}"
+python3.7 "${DIR}"/crawl.py
